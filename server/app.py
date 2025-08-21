@@ -18,7 +18,7 @@ load_dotenv()
 # -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia.keras")
-MODEL_URL = os.getenv("https://drive.google.com/uc?id=1cvjM9vPcouZvzSpRxH0uh9_H2jACa8KI")  
+MODEL_URL = os.getenv("MODEL_URL")  
 
 THRESHOLD = 0.5  # sigmoid threshold
 
