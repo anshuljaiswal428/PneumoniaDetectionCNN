@@ -5,7 +5,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+from dotenv import load_dotenv
 
+load_dotenv()
 # -------------------
 # Config
 # -------------------
@@ -136,4 +138,5 @@ def predict():
 # Run (for local dev)
 # -------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
