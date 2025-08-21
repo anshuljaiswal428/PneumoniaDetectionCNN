@@ -1,4 +1,8 @@
-import os, hashlib, logging, tempfile
+import os
+import hashlib
+import logging
+import tempfile
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import numpy as np
@@ -8,11 +12,13 @@ from tensorflow.keras.preprocessing import image
 from dotenv import load_dotenv
 
 load_dotenv()
+
 # -------------------
 # Config
 # -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia.keras")
+MODEL_URL = os.getenv("https://drive.google.com/uc?id=1cvjM9vPcouZvzSpRxH0uh9_H2jACa8KI")  
 
 THRESHOLD = 0.5  # sigmoid threshold
 
@@ -33,21 +39,38 @@ def md5sum(path):
             h.update(chunk)
     return h.hexdigest()
 
-# Load model once
+# -------------------
+# Download model if missing
+# -------------------
+if not os.path.isfile(MODEL_PATH):
+    if not MODEL_URL:
+        logger.error("MODEL_URL not set and model file is missing!")
+        raise FileNotFoundError("No model found and MODEL_URL not provided.")
+    
+    logger.info(f"Model not found locally. Downloading from {MODEL_URL}...")
+    response = requests.get(MODEL_URL, stream=True)
+    response.raise_for_status()
+    
+    with open(MODEL_PATH, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+    logger.info("✅ Model downloaded successfully.")
+
+# -------------------
+# Load model
+# -------------------
 logger.info("🔄 Loading model...")
 model = load_model(MODEL_PATH, compile=False)
 
-MODEL_MD5 = None
-if os.path.isfile(MODEL_PATH):  # Keras or H5 model
-    MODEL_MD5 = md5sum(MODEL_PATH)
-elif os.path.isdir(MODEL_PATH):  # SavedModel directory
-    MODEL_MD5 = md5sum(os.path.join(MODEL_PATH, "saved_model.pb"))
+MODEL_MD5 = md5sum(MODEL_PATH) if os.path.isfile(MODEL_PATH) else None
 
 # Detect expected input size (ignore batch dimension)
 if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape[0], (list, tuple)):
     in_h, in_w = model.input_shape[0][1:3]
 else:
     in_h, in_w = model.input_shape[1:3]
+
 logger.info(f"✅ Model loaded. Expected input size: ({in_h}, {in_w})")
 
 # Optimize predict call
@@ -59,7 +82,6 @@ def model_predict(batch):
 # Preprocessing
 # -------------------
 def preprocess_image(path):
-    """Load image, resize with keras.load_img, convert to array, normalize"""
     img = image.load_img(path, target_size=(in_h, in_w))
     img_array = image.img_to_array(img) / 255.0
     return np.expand_dims(img_array, axis=0)
@@ -88,7 +110,6 @@ def predict():
     
     file = request.files["file"]
 
-    # Use temp file to avoid storage bloat
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
         file_path = tmp.name
         file.save(file_path)
@@ -128,7 +149,6 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
     finally:
-        # Clean up temp file
         try:
             os.remove(file_path)
         except OSError:
@@ -138,5 +158,5 @@ def predict():
 # Run (for local dev)
 # -------------------
 if __name__ == "__main__":
-    PORT = int(os.getenv("PORT", 8000))  # fallback for local dev
+    PORT = int(os.getenv("PORT", 8000))
     app.run(host="0.0.0.0", port=PORT, debug=True)
