@@ -1,7 +1,7 @@
-flask
-flask-cors
-gunicorn
+python-dotenv
+flask==3.1.2
+flask-cors==6.0.1
+gunicorn==23.0.0
 tensorflow==2.15.0
 numpy
 pillow
-python-dotenv
