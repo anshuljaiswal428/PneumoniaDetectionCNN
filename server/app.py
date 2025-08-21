@@ -10,8 +10,12 @@ from tensorflow.keras.preprocessing import image
 # Config
 # -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "pneumonia_detector_model_new.h5")
+MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia_detector_model")
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+
+
 THRESHOLD = 0.5  # sigmoid threshold
+
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +37,12 @@ def md5sum(path):
 # Load model once
 logger.info("🔄 Loading model...")
 model = load_model(MODEL_PATH, compile=False)
-MODEL_MD5 = md5sum(MODEL_PATH)
+MODEL_MD5 = None
+if os.path.isfile(MODEL_PATH):  # H5 model
+    MODEL_MD5 = md5sum(MODEL_PATH)
+elif os.path.isdir(MODEL_PATH):  # SavedModel
+    MODEL_MD5 = md5sum(os.path.join(MODEL_PATH, "saved_model.pb"))
+
 
 # Detect expected input size (ignore batch dimension)
 if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape[0], (list, tuple)):
