@@ -1,5 +1,4 @@
-import os
-import hashlib
+import io
 import logging
 import tempfile
 import requests
@@ -16,10 +15,7 @@ load_dotenv()
 # -------------------
 # Config
 # -------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia.keras")
-MODEL_URL = os.getenv("MODEL_URL")  
-
+MODEL_URL = os.getenv("MODEL_URL")  # must be set
 THRESHOLD = 0.5  # sigmoid threshold
 
 # Logging setup
@@ -30,54 +26,24 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # -------------------
-# Helpers
+# Download and load model into memory
 # -------------------
-def md5sum(path):
-    h = hashlib.md5()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
+if not MODEL_URL:
+    logger.error("MODEL_URL not set!")
+    raise ValueError("MODEL_URL environment variable is required.")
 
-# -------------------
-# Download model if missing
-# -------------------
-logger.info(f"Checking model path: {MODEL_PATH}")
-if not os.path.isfile(MODEL_PATH):
-    if not MODEL_URL:
-        logger.error("MODEL_URL not set and model file is missing!")
-        raise FileNotFoundError("No model found and MODEL_URL not provided.")
+logger.info(f"Downloading model from {MODEL_URL} ...")
+try:
+    response = requests.get(MODEL_URL, stream=True, timeout=60)
+    response.raise_for_status()
+    model_file = io.BytesIO(response.content)
+    model = load_model(model_file, compile=False)
+    logger.info("✅ Model downloaded and loaded successfully.")
+except Exception as e:
+    logger.exception(f"Failed to download/load model: {e}")
+    raise
 
-    logger.info(f"Model not found locally. Downloading from {MODEL_URL}...")
-    try:
-        response = requests.get(MODEL_URL, stream=True, timeout=60)
-        response.raise_for_status()
-        with open(MODEL_PATH, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-        logger.info(f"✅ Model downloaded successfully to {MODEL_PATH}")
-    except Exception as e:
-        logger.exception(f"Failed to download model: {e}")
-        raise
-
-# -------------------
-# Load model
-# -------------------
-if os.path.isfile(MODEL_PATH):
-    logger.info("🔄 Loading model...")
-    try:
-        model = load_model(MODEL_PATH, compile=False)
-        MODEL_MD5 = md5sum(MODEL_PATH)
-        logger.info(f"✅ Model loaded. MD5 checksum: {MODEL_MD5}")
-    except Exception as e:
-        logger.exception(f"Failed to load model: {e}")
-        raise
-else:
-    logger.error(f"Model file still missing: {MODEL_PATH}")
-    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
-
-# Detect expected input size (ignore batch dimension)
+# Detect expected input size
 if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape[0], (list, tuple)):
     in_h, in_w = model.input_shape[0][1:3]
 else:
@@ -107,8 +73,7 @@ def home():
         "message": "Pneumonia Detection API is running!",
         "tf_version": tf.__version__,
         "input_shape": model.input_shape,
-        "output_shape": model.output_shape,
-        "model_md5": MODEL_MD5
+        "output_shape": model.output_shape
     })
 
 @app.route("/healthz", methods=["GET"])
