@@ -138,5 +138,5 @@ def predict():
 # Run (for local dev)
 # -------------------
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    PORT = int(os.getenv("PORT", 8000))  # fallback for local dev
+    app.run(host="0.0.0.0", port=PORT, debug=True)
