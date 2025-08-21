@@ -1,4 +1,5 @@
-import io
+import os
+import hashlib
 import logging
 import tempfile
 import requests
