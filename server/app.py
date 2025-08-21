@@ -38,8 +38,12 @@ logger.info(f"Downloading model from {MODEL_URL} ...")
 try:
     response = requests.get(MODEL_URL, stream=True, timeout=60)
     response.raise_for_status()
-    model_file = io.BytesIO(response.content)
-    model = load_model(model_file, compile=False)
+    # Save to temporary file
+    tmp_model_file = tempfile.NamedTemporaryFile(delete=False, suffix=".h5")
+    tmp_model_file.write(response.content)
+    tmp_model_file.close()
+
+    model = load_model(tmp_model_file.name, compile=False)
     logger.info("✅ Model downloaded and loaded successfully.")
 except Exception as e:
     logger.exception(f"Failed to download/load model: {e}")
