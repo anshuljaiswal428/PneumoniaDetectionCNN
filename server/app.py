@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("PneumoniaAPI")
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://pneumoniadetectionbyanshul.vercel.app/"]}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # -------------------
 # Helpers
