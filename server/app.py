@@ -42,28 +42,40 @@ def md5sum(path):
 # -------------------
 # Download model if missing
 # -------------------
+logger.info(f"Checking model path: {MODEL_PATH}")
 if not os.path.isfile(MODEL_PATH):
     if not MODEL_URL:
         logger.error("MODEL_URL not set and model file is missing!")
         raise FileNotFoundError("No model found and MODEL_URL not provided.")
-    
+
     logger.info(f"Model not found locally. Downloading from {MODEL_URL}...")
-    response = requests.get(MODEL_URL, stream=True)
-    response.raise_for_status()
-    
-    with open(MODEL_PATH, "wb") as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            if chunk:
-                f.write(chunk)
-    logger.info("✅ Model downloaded successfully.")
+    try:
+        response = requests.get(MODEL_URL, stream=True, timeout=60)
+        response.raise_for_status()
+        with open(MODEL_PATH, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        logger.info(f"✅ Model downloaded successfully to {MODEL_PATH}")
+    except Exception as e:
+        logger.exception(f"Failed to download model: {e}")
+        raise
 
 # -------------------
 # Load model
 # -------------------
-logger.info("🔄 Loading model...")
-model = load_model(MODEL_PATH, compile=False)
-
-MODEL_MD5 = md5sum(MODEL_PATH) if os.path.isfile(MODEL_PATH) else None
+if os.path.isfile(MODEL_PATH):
+    logger.info("🔄 Loading model...")
+    try:
+        model = load_model(MODEL_PATH, compile=False)
+        MODEL_MD5 = md5sum(MODEL_PATH)
+        logger.info(f"✅ Model loaded. MD5 checksum: {MODEL_MD5}")
+    except Exception as e:
+        logger.exception(f"Failed to load model: {e}")
+        raise
+else:
+    logger.error(f"Model file still missing: {MODEL_PATH}")
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
 
 # Detect expected input size (ignore batch dimension)
 if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape[0], (list, tuple)):
@@ -71,7 +83,7 @@ if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape
 else:
     in_h, in_w = model.input_shape[1:3]
 
-logger.info(f"✅ Model loaded. Expected input size: ({in_h}, {in_w})")
+logger.info(f"✅ Model input size: ({in_h}, {in_w})")
 
 # Optimize predict call
 @tf.function
@@ -114,6 +126,8 @@ def predict():
         file_path = tmp.name
         file.save(file_path)
 
+    logger.info(f"Saved uploaded file to: {file_path}")
+
     try:
         img_array = preprocess_image(file_path)
         logger.info(f"✅ Preprocessed shape: {img_array.shape}")
@@ -151,12 +165,14 @@ def predict():
     finally:
         try:
             os.remove(file_path)
+            logger.info(f"Deleted temp file: {file_path}")
         except OSError:
-            pass
+            logger.warning(f"Failed to delete temp file: {file_path}")
 
 # -------------------
 # Run (for local dev)
 # -------------------
 if __name__ == "__main__":
     PORT = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting app on port {PORT}...")
     app.run(host="0.0.0.0", port=PORT, debug=True)
