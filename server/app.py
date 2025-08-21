@@ -11,11 +11,8 @@ from tensorflow.keras.preprocessing import image
 # -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia_detector_model.keras")
-model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-
 
 THRESHOLD = 0.5  # sigmoid threshold
-
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -37,12 +34,12 @@ def md5sum(path):
 # Load model once
 logger.info("🔄 Loading model...")
 model = load_model(MODEL_PATH, compile=False)
-MODEL_MD5 = None
-if os.path.isfile(MODEL_PATH):  # H5 model
-    MODEL_MD5 = md5sum(MODEL_PATH)
-elif os.path.isdir(MODEL_PATH):  # SavedModel
-    MODEL_MD5 = md5sum(os.path.join(MODEL_PATH, "saved_model.pb"))
 
+MODEL_MD5 = None
+if os.path.isfile(MODEL_PATH):  # Keras or H5 model
+    MODEL_MD5 = md5sum(MODEL_PATH)
+elif os.path.isdir(MODEL_PATH):  # SavedModel directory
+    MODEL_MD5 = md5sum(os.path.join(MODEL_PATH, "saved_model.pb"))
 
 # Detect expected input size (ignore batch dimension)
 if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape[0], (list, tuple)):
@@ -57,7 +54,7 @@ def model_predict(batch):
     return model(batch, training=False)
 
 # -------------------
-# Preprocessing (SAME as your script)
+# Preprocessing
 # -------------------
 def preprocess_image(path):
     """Load image, resize with keras.load_img, convert to array, normalize"""
@@ -136,7 +133,7 @@ def predict():
             pass
 
 # -------------------
-# Run
+# Run (for local dev)
 # -------------------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8000)
