@@ -12,7 +12,7 @@ load_dotenv()
 # Config
 # -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia_detector_model.keras")
+MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia.keras")
 
 THRESHOLD = 0.5  # sigmoid threshold
 
