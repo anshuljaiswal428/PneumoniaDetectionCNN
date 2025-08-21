@@ -10,7 +10,7 @@ from tensorflow.keras.preprocessing import image
 # Config
 # -------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia_detector_model")
+MODEL_PATH = os.path.join(BASE_DIR, "newpneumonia_detector_model.keras")
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
 
