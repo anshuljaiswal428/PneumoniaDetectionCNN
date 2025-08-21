@@ -1,4 +1,5 @@
 import os
+import io
 import hashlib
 import logging
 import tempfile
