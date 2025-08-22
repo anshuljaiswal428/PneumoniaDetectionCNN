@@ -1,6 +1,4 @@
 import os
-import io
-import hashlib
 import logging
 import tempfile
 import requests
@@ -11,9 +9,6 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from dotenv import load_dotenv
 from PIL import Image  # using PIL instead of keras.preprocessing.image
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
-
 
 load_dotenv()
 
@@ -67,10 +62,18 @@ else:
 
 logger.info(f"✅ Model input size: ({in_h}, {in_w})")
 
-# Optimize predict call
-@tf.function
+# -------------------
+# Predict function (no tf.function → eager mode)
+# -------------------
 def model_predict(batch):
     return model(batch, training=False)
+
+# -------------------
+# Warmup the model once (so first real request is fast)
+# -------------------
+dummy = np.zeros((1, in_h, in_w, 3), dtype=np.float32)
+_ = model_predict(dummy)
+logger.info("🔥 Model warmed up and ready")
 
 # -------------------
 # Preprocessing (using Pillow directly)
