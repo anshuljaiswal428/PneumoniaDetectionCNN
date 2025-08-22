@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
+import { Client } from "@gradio/client";
 import './Home.css';
 
 function Home() {
   const [file, setFile] = useState(null);
   const [prediction, setPrediction] = useState('');
   const [error, setError] = useState('');
-
-  const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000"; 
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
@@ -21,25 +20,23 @@ function Home() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch(`${API_URL}/predict`, {
-        method: 'POST',
-        body: formData,
+      // Connect to your Hugging Face Space
+      const client = await Client.connect("anshul428/pneumonia-detector");
+
+      // Call /predict with your uploaded file
+      const result = await client.predict("/predict", {
+        pil_img: file,   // key name matches your `app.py`
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      console.log("Raw result:", result.data);
 
-      const result = await response.json();
-      console.log(result);
-      setPrediction(result.diagnosis);
+      // Gradio Label output looks like: { "label": "Pneumonia", "confidence": 0.92 }
+      const output = result.data[0];
+      setPrediction(`${output.label} (${(output.confidence * 100).toFixed(1)}%)`);
     } catch (err) {
-      console.error('Error fetching prediction:', err);
-      setError('Failed to get prediction. Please try again.');
+      console.error("Error fetching prediction:", err);
+      setError("Failed to get prediction. Please try again.");
     }
   };
 
