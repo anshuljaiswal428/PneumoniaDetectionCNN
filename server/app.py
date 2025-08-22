@@ -9,8 +9,11 @@ from flask_cors import CORS
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
 from dotenv import load_dotenv
+from PIL import Image  # using PIL instead of keras.preprocessing.image
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+
 
 load_dotenv()
 
@@ -18,6 +21,7 @@ load_dotenv()
 # Config
 # -------------------
 MODEL_URL = os.getenv("MODEL_URL")  # must be set
+LOCAL_MODEL_PATH = "newpneumonia.keras"
 THRESHOLD = 0.5  # sigmoid threshold
 
 # Logging setup
@@ -28,26 +32,32 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # -------------------
-# Download and load model into memory
+# Load Model (local first, fallback to download)
 # -------------------
-if not MODEL_URL:
-    logger.error("MODEL_URL not set!")
-    raise ValueError("MODEL_URL environment variable is required.")
+model = None
+if os.path.exists(LOCAL_MODEL_PATH):
+    logger.info(f"📂 Found local model: {LOCAL_MODEL_PATH}, loading...")
+    model = load_model(LOCAL_MODEL_PATH, compile=False)
+    logger.info("✅ Local model loaded successfully.")
+else:
+    if not MODEL_URL:
+        logger.error("MODEL_URL not set and no local model found!")
+        raise ValueError("MODEL_URL environment variable is required if no local model is present.")
+    
+    logger.info(f"🌐 Local model not found, downloading from {MODEL_URL} ...")
+    try:
+        response = requests.get(MODEL_URL, stream=True, timeout=60)
+        response.raise_for_status()
 
-logger.info(f"Downloading model from {MODEL_URL} ...")
-try:
-    response = requests.get(MODEL_URL, stream=True, timeout=60)
-    response.raise_for_status()
-    # Save to temporary file
-    tmp_model_file = tempfile.NamedTemporaryFile(delete=False, suffix=".h5")
-    tmp_model_file.write(response.content)
-    tmp_model_file.close()
+        # Save to local file for reuse
+        with open(LOCAL_MODEL_PATH, "wb") as f:
+            f.write(response.content)
 
-    model = load_model(tmp_model_file.name, compile=False)
-    logger.info("✅ Model downloaded and loaded successfully.")
-except Exception as e:
-    logger.exception(f"Failed to download/load model: {e}")
-    raise
+        model = load_model(LOCAL_MODEL_PATH, compile=False)
+        logger.info(f"✅ Model downloaded and saved as {LOCAL_MODEL_PATH}")
+    except Exception as e:
+        logger.exception(f"❌ Failed to download/load model: {e}")
+        raise
 
 # Detect expected input size
 if isinstance(model.input_shape, (list, tuple)) and isinstance(model.input_shape[0], (list, tuple)):
@@ -63,11 +73,12 @@ def model_predict(batch):
     return model(batch, training=False)
 
 # -------------------
-# Preprocessing
+# Preprocessing (using Pillow directly)
 # -------------------
 def preprocess_image(path):
-    img = image.load_img(path, target_size=(in_h, in_w))
-    img_array = image.img_to_array(img) / 255.0
+    img = Image.open(path).convert("RGB")
+    img = img.resize((in_h, in_w))
+    img_array = np.array(img) / 255.0
     return np.expand_dims(img_array, axis=0)
 
 # -------------------
@@ -79,7 +90,8 @@ def home():
         "message": "Pneumonia Detection API is running!",
         "tf_version": tf.__version__,
         "input_shape": model.input_shape,
-        "output_shape": model.output_shape
+        "output_shape": model.output_shape,
+        "model_in_use": LOCAL_MODEL_PATH if os.path.exists(LOCAL_MODEL_PATH) else "downloaded"
     })
 
 @app.route("/healthz", methods=["GET"])
