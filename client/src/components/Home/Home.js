@@ -4,12 +4,13 @@ import './Home.css';
 
 function Home() {
   const [file, setFile] = useState(null);
-  const [prediction, setPrediction] = useState('');
+  const [predictionPos, setPredictionPos] = useState('');
+  const [predictionNor, setPredictionNor] = useState('');
   const [error, setError] = useState('');
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
-    setPrediction('');
+    setPredictionPos('');
     setError('');
   };
 
@@ -21,19 +22,15 @@ function Home() {
     }
 
     try {
-      // Connect to your Hugging Face Space
       const client = await Client.connect("anshul428/pneumonia-detector");
 
-      // Call /predict with your uploaded file
       const result = await client.predict("/predict", {
-        pil_img: file,   // key name matches your `app.py`
+        pil_img: file,
       });
 
-      console.log("Raw result:", result.data);
-
-      // Gradio Label output looks like: { "label": "Pneumonia", "confidence": 0.92 }
       const output = result.data[0];
-      setPrediction(`${output.label} (${(output.confidence * 100).toFixed(1)}%)`);
+      setPredictionPos(`${output.confidences[0].label} (${(output.confidences[0].confidence * 100).toFixed(1)}%)`);
+      setPredictionNor(`${output.confidences[1].label} (${(output.confidences[1].confidence * 100).toFixed(1)}%)`);
     } catch (err) {
       console.error("Error fetching prediction:", err);
       setError("Failed to get prediction. Please try again.");
@@ -56,7 +53,8 @@ function Home() {
         </button>
       </form>
 
-      {prediction && <h2 className="diagnosis">Diagnosis: {prediction}</h2>}
+      {predictionPos && <h2 className="diagnosisInfec">Pneumonia Infection Percentage: {predictionPos}</h2>}
+      {predictionNor && <h2 className="diagnosisNorm">No Infection Percentage: {predictionNor}</h2>}
       {error && <p className="error">{error}</p>}
     </div>
   );

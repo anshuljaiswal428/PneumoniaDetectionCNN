@@ -44,7 +44,12 @@ body {
 }
 
 /* Add this new class for styling the diagnosis output */
-.content .diagnosis {
+.content .diagnosisInfec {
+    margin-top: 1rem;
+    font-size: 2em; /* Adjust the font size as needed */
+    color: rgb(255, 0, 0); /* Change color to green for visibility */
+}
+.content .diagnosisNorm {
     margin-top: 1rem;
     font-size: 2em; /* Adjust the font size as needed */
     color: rgb(0, 255, 0); /* Change color to green for visibility */
