@@ -16,6 +16,13 @@ function Home() {
     setError("");
   };
 
+  // helper function to extract confidence number from prediction string
+  const getConfidenceValue = (prediction) => {
+    if (!prediction) return 0;
+    const match = prediction.match(/\(([\d.]+)%\)/); // regex to get percentage
+    return match ? parseFloat(match[1]) : 0;
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!file) {
@@ -54,6 +61,10 @@ function Home() {
     }
   };
 
+  // get numeric values for comparison
+  const norValue = getConfidenceValue(predictionNor);
+  const posValue = getConfidenceValue(predictionPos);
+
   return (
     <div className="content">
       <h1>Upload X-ray Image</h1>
@@ -83,6 +94,20 @@ function Home() {
           No Infection Percentage: {predictionNor}
         </h2>
       )}
+
+      {/* Final Diagnosis */}
+      {predictionPos && predictionNor && (
+        norValue > posValue ? (
+          <h2 className="diagnosisNormRes">
+            ✅ Person is not having pneumonia ✅
+          </h2>
+        ) : (
+          <h2 className="diagnosisInfecRes">
+            ❌ Person is having pneumonia ❌
+          </h2>
+        )
+      )}
+
       {error && <p className="error">{error}</p>}
     </div>
   );

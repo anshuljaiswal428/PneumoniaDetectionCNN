@@ -54,3 +54,17 @@ body {
     font-size: 2em; /* Adjust the font size as needed */
     color: rgb(0, 255, 0); /* Change color to green for visibility */
 }
+
+.content .diagnosisInfecRes {
+    margin-top: 1rem;
+    font-size: 2em; /* Adjust the font size as needed */
+    color: rgb(255, 0, 0); /* Change color to green for visibility */
+    background: rgb(255, 255, 255);
+}
+
+.content .diagnosisNormRes {
+    margin-top: 1rem;
+    font-size: 2em; /* Adjust the font size as needed */
+    color: rgb(0, 255, 0); /* Change color to green for visibility */
+    background: rgb(255, 255, 255);
+}
